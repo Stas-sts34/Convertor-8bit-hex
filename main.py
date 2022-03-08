@@ -1,46 +1,61 @@
-import openpyxl
-import pandas as pd
+import sys  # sys нужен для передачи argv в QApplication
+from PyQt5 import QtWidgets, QtCore, QtGui
+import design  # Это наш конвертированный файл дизайна
+import os
+from convertor import Converter
 
 
-class Converter:
+class ExampleApp(QtWidgets.QMainWindow, design.Ui_Dialog):
+    def __init__(self):
+        # Это здесь нужно для доступа к переменным, методам
+        # и т.д. в файле design.py
+        super().__init__()
+        self.setupUi(self)  # Это нужно для инициализации нашего дизайна
 
-    def convertion(self, number):
-        revers_number = ''.join(reversed(number))
-        # revers_number = f"{(14 - len(revers_number)) * '0'}{revers_number}"     #add null, if len str <14
-        while len(revers_number) < 14:
-            revers_number = revers_number + "0"
-        binar_list = []
-        for i in revers_number:
-            bin_str = bin(int(i))[2:]
-            bin_str = f"{(3 - len(bin_str)) * '0'}{bin_str}"
-            # while len(str(bin_str)) < 3:
-            #     bin_str = '0' + bin_str
-            binar_list.append(bin_str)
-        out_binar = ''.join(binar_list)
-        out_hex = str(hex(int(out_binar, 2)))
-        out_hex = out_hex[-6:]
-        return out_hex.upper()
+        self.BtnBrows.clicked.connect(self.browse_file)
+        self.Convertation.clicked.connect(self.conv_file)
+        self.file = ''
+        self.label.setText(self.file)
+        self.out_file.textEdited.connect(self.get_out_file)
+        self.file_out = 'out.xlsx'
 
-    def add_null(self, in_number):
-        in_number = f"{(14 - len(in_number)) * '0'}{in_number}"     #add null, if len str <14
-        return in_number
+    def get_out_file(self, text):           # имя выходного файла
+        self.file_out = text + '.xlsx'
+        return text + '.xlsx'
 
-    def open_xls(self):
-        data_xls = pd.read_excel('in.xlsx',
-                                 sheet_name='Лист1',
-                                 index_col=0)      # конвертирут из xlsx в csv
-        data_xls.to_csv('in.csv', encoding='cp1251')
-        df_convert = pd.read_csv('in.csv', encoding='cp1251', dtype=str)
-        df = pd.DataFrame(columns=['0', '1'])          # создание нового датафрейма
-        for i in range(0, len(df_convert)):
-            number_in = self.add_null(df_convert.iloc[i, 0])
-            number_out = self.convertion(str(df_convert.iloc[i, 0]))
-            df.loc[i] = number_in, number_out       # заполнение датафрейма
-        try:
-            df.to_excel('out.xlsx',  index=False)
-        except PermissionError:
-            df.to_excel('out1.xlsx', index=False)
+    def browse_file(self):
+        file = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File',
+                        './',
+                        'xls Files (*.xlsx)')
+
+        if file:
+            self.file = file[0]             # выбирается пусть к файлу и название
+            self.label.setText(self.file)
+            return file[0]
+        else:
+            return
+
+    def conv_file(self):        # конвертация файла
+        elem = Converter()
+        if self.file:
+            try:
+                elem.open_xls(self.file, self.file_out)
+                self.label_message.setStyleSheet('color: rgb(0, 255, 0);')
+                self.label_message.setText('Convertation success ')
+            except:
+                self.label_message.setStyleSheet('color: rgb(255, 0, 0);')
+                self.label_message.setText('Error convertation')
+        else:
+            self.browse_file()
+            elem.open_xls(self.file, self.file_out)
 
 
-elem = Converter()
-elem.open_xls()
+def main():
+    app = QtWidgets.QApplication(sys.argv)  # Новый экземпляр QApplication
+    window = ExampleApp()  # Создаём объект класса ExampleApp
+    window.show()  # Показываем окно
+    app.exec_()  # и запускаем приложение
+
+
+if __name__ == '__main__':  # Если мы запускаем файл напрямую, а не импортируем
+    main()  # то запускаем функцию main()
